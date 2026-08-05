@@ -9,6 +9,7 @@ import {
     routeSegments,
     servicePoints,
 } from '@/data/ecoRouteMock';
+import type { LatLng } from '@/data/ecoRouteMock';
 import { toLngLat } from '@/lib/maps/geo';
 import {
     avatarMarkerElement,
@@ -199,7 +200,11 @@ function recenter(): void {
     map?.easeTo({ center: toLngLat(mapCenter), zoom: 13.5 });
 }
 
-defineExpose({ zoomIn, zoomOut, recenter });
+function flyToLocation(position: LatLng, zoom = 15.5): void {
+    map?.easeTo({ center: toLngLat(position), zoom });
+}
+
+defineExpose({ zoomIn, zoomOut, recenter, flyToLocation });
 
 onMounted(initMap);
 

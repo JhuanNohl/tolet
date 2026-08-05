@@ -1,45 +1,78 @@
 <script setup lang="ts">
 import { Leaf, Moon, Sun } from '@lucide/vue';
+import type { Component } from 'vue';
+import MapSearch from '@/components/map/MapSearch.vue';
+import StatCard from '@/components/map/StatCard.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import type { Appearance } from '@/types';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import UserMenuContent from '@/components/UserMenuContent.vue';
+import { getInitials } from '@/composables/useInitials';
+import type { LatLng } from '@/data/ecoRouteMock';
+import type { Appearance, User } from '@/types';
+
+export type TopBarStat = {
+    icon: Component;
+    label: string;
+    value: string;
+    suffix?: string;
+    dotClass?: string;
+    active?: boolean;
+};
 
 type Props = {
     brandName: string;
-    tagline: string;
-    userName: string;
-    userAvatar?: string;
-    userInitials: string;
+    user: User;
     appearance: Appearance;
+    stats: TopBarStat[];
 };
 
 defineProps<Props>();
 
 const emit = defineEmits<{
     'toggle-appearance': [];
+    'search-select': [position: LatLng];
 }>();
 </script>
 
 <template>
     <div
-        class="pointer-events-auto flex items-center justify-between gap-4 rounded-2xl border border-black/5 bg-white/70 px-4 py-3 shadow-lg backdrop-blur-md dark:border-white/10 dark:bg-black/60"
+        class="pointer-events-auto flex items-center gap-3 rounded-2xl border border-black/5 bg-white/70 px-4 py-3 shadow-lg backdrop-blur-md dark:border-white/10 dark:bg-black/60"
     >
-        <div class="flex items-center gap-3">
+        <div class="flex shrink-0 items-center gap-3">
             <div
                 class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm"
             >
                 <Leaf class="size-5" />
             </div>
-            <div class="leading-tight">
-                <p class="text-base font-semibold text-foreground">
-                    {{ brandName }}
-                </p>
-                <p class="text-xs text-muted-foreground">
-                    {{ tagline }}
-                </p>
-            </div>
+            <p class="hidden text-base font-semibold text-foreground sm:block">
+                {{ brandName }}
+            </p>
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="hidden h-8 w-px bg-black/10 md:block dark:bg-white/10" />
+
+        <div class="flex shrink-0 items-center gap-1 overflow-x-auto md:gap-2">
+            <StatCard
+                v-for="stat in stats"
+                :key="stat.label"
+                :icon="stat.icon"
+                :label="stat.label"
+                :value="stat.value"
+                :suffix="stat.suffix"
+                :dot-class="stat.dotClass"
+                :active="stat.active"
+            />
+        </div>
+
+        <div class="flex flex-1 items-center justify-end">
+            <MapSearch @select="emit('search-select', $event)" />
+        </div>
+
+        <div class="flex shrink-0 items-center gap-2">
             <button
                 type="button"
                 class="flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
@@ -54,23 +87,33 @@ const emit = defineEmits<{
                 <Moon v-else class="size-4.5" />
             </button>
 
-            <div class="relative">
-                <Avatar class="size-9 overflow-hidden rounded-full">
-                    <AvatarImage
-                        v-if="userAvatar"
-                        :src="userAvatar"
-                        :alt="userName"
-                    />
-                    <AvatarFallback
-                        class="bg-primary font-semibold text-primary-foreground"
+            <DropdownMenu>
+                <DropdownMenuTrigger :as-child="true">
+                    <button
+                        type="button"
+                        class="relative rounded-full focus-within:ring-2 focus-within:ring-primary"
                     >
-                        {{ userInitials }}
-                    </AvatarFallback>
-                </Avatar>
-                <span
-                    class="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full border-2 border-white bg-green-500 dark:border-black"
-                />
-            </div>
+                        <Avatar class="size-9 overflow-hidden rounded-full">
+                            <AvatarImage
+                                v-if="user.avatar"
+                                :src="user.avatar"
+                                :alt="user.name"
+                            />
+                            <AvatarFallback
+                                class="bg-primary font-semibold text-primary-foreground"
+                            >
+                                {{ getInitials(user.name) }}
+                            </AvatarFallback>
+                        </Avatar>
+                        <span
+                            class="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full border-2 border-white bg-green-500 dark:border-black"
+                        />
+                    </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" class="w-56">
+                    <UserMenuContent :user="user" />
+                </DropdownMenuContent>
+            </DropdownMenu>
         </div>
     </div>
 </template>

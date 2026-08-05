@@ -7,11 +7,10 @@ import EcoRouteMap from '@/components/map/EcoRouteMap.vue';
 import MapLegendCard from '@/components/map/MapLegendCard.vue';
 import MapSustainabilityCard from '@/components/map/MapSustainabilityCard.vue';
 import MapTopBar from '@/components/map/MapTopBar.vue';
+import type { TopBarStat } from '@/components/map/MapTopBar.vue';
 import MapZoomControls from '@/components/map/MapZoomControls.vue';
-import StatCard from '@/components/map/StatCard.vue';
 import { Toaster } from '@/components/ui/sonner';
 import { useAppearance } from '@/composables/useAppearance';
-import { getInitials } from '@/composables/useInitials';
 import { operationsStats } from '@/data/ecoRouteMock';
 
 const page = usePage();
@@ -23,6 +22,28 @@ const { appearance, resolvedAppearance, updateAppearance } = useAppearance();
 function toggleAppearance(): void {
     updateAppearance(resolvedAppearance.value === 'dark' ? 'light' : 'dark');
 }
+
+const topBarStats = computed<TopBarStat[]>(() => [
+    {
+        icon: Users,
+        label: 'Ativos',
+        value: String(operationsStats.active.current),
+        suffix: `de ${operationsStats.active.total}`,
+        dotClass: 'bg-primary animate-pulse',
+        active: true,
+    },
+    {
+        icon: CircleCheck,
+        label: 'Finalizados',
+        value: String(operationsStats.completed),
+    },
+    {
+        icon: RefreshCw,
+        label: 'Em andamento',
+        value: String(operationsStats.inProgress),
+        dotClass: 'bg-blue-500',
+    },
+]);
 
 const mapRef = ref<InstanceType<typeof EcoRouteMap> | null>(null);
 
@@ -47,35 +68,12 @@ function handleMapError(message: string): void {
         >
             <MapTopBar
                 :brand-name="brandName"
-                tagline="Gestão de Rotas Sustentáveis"
-                :user-name="auth.user?.name ?? ''"
-                :user-avatar="auth.user?.avatar"
-                :user-initials="getInitials(auth.user?.name)"
+                :user="auth.user"
                 :appearance="appearance"
+                :stats="topBarStats"
                 @toggle-appearance="toggleAppearance"
+                @search-select="mapRef?.flyToLocation($event)"
             />
-
-            <div class="flex flex-wrap items-start gap-3">
-                <StatCard
-                    :icon="Users"
-                    label="Ativos"
-                    :value="String(operationsStats.active.current)"
-                    :suffix="`de ${operationsStats.active.total}`"
-                    dot-class="bg-primary animate-pulse"
-                    :active="true"
-                />
-                <StatCard
-                    :icon="CircleCheck"
-                    label="Finalizados"
-                    :value="String(operationsStats.completed)"
-                />
-                <StatCard
-                    :icon="RefreshCw"
-                    label="Em andamento"
-                    :value="String(operationsStats.inProgress)"
-                    dot-class="bg-blue-500"
-                />
-            </div>
 
             <div class="flex-1"></div>
 
@@ -85,7 +83,9 @@ function handleMapError(message: string): void {
             </div>
         </div>
 
-        <div class="pointer-events-none absolute top-32 left-4">
+        <div
+            class="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2"
+        >
             <MapZoomControls
                 @zoom-in="mapRef?.zoomIn()"
                 @zoom-out="mapRef?.zoomOut()"
