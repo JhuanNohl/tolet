@@ -12,9 +12,12 @@
 /resources/js/wayfinder
 /vendor
 .DS_Store
+Thumbs.db
 .env
 .env.backup
 .env.production
+.env.local
+.env.*.local
 .phpactor.json
 .phpunit.result.cache
 Homestead.json
@@ -26,4 +29,15 @@ yarn-error.log
 /.idea
 /.nova
 /.vscode
+/.vs
 /.zed
+
+# Chaves e credenciais que nunca devem ser commitadas
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*credentials*.json
+*service-account*.json
+firebase-adminsdk-*.json
