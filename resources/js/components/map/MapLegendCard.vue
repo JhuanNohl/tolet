@@ -1,18 +1,11 @@
 <script setup lang="ts">
-import { Clock3, CircleCheck, LoaderCircle, TriangleAlert } from '@lucide/vue';
 import type { ServiceStatus } from '@/data/serviceStatus';
 import {
     STATUS_COLORS,
+    STATUS_ICONS,
     STATUS_LABELS,
     STATUS_MEANINGS,
 } from '@/data/serviceStatus';
-
-const STATUS_ICONS: Record<ServiceStatus, unknown> = {
-    waiting: Clock3,
-    'in-progress': LoaderCircle,
-    completed: CircleCheck,
-    failed: TriangleAlert,
-};
 
 const statuses = (
     Object.keys(STATUS_COLORS) as ServiceStatus[]

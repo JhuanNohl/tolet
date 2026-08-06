@@ -7,34 +7,45 @@ type Props = {
     value: string;
     suffix?: string;
     dotClass?: string;
-    active?: boolean;
+    dotColor?: string;
+    selected?: boolean;
+    dimmed?: boolean;
 };
 
 withDefaults(defineProps<Props>(), {
     suffix: undefined,
     dotClass: undefined,
-    active: false,
+    dotColor: undefined,
+    selected: false,
+    dimmed: false,
 });
+
+defineEmits<{ click: [] }>();
 </script>
 
 <template>
-    <div
-        class="flex shrink-0 items-center gap-2 rounded-full px-2.5 py-1.5 transition-colors"
-        :class="
-            active ? 'bg-primary/10 dark:bg-primary/15' : 'hover:bg-accent/60'
-        "
+    <button
+        type="button"
+        class="flex shrink-0 items-center gap-2 rounded-full px-2.5 py-1.5 transition-colors duration-200"
+        :class="[
+            selected
+                ? 'bg-primary/10 dark:bg-primary/15'
+                : 'hover:bg-accent/60',
+            dimmed ? 'opacity-50' : '',
+        ]"
+        @click="$emit('click')"
     >
         <div
-            class="flex size-7 shrink-0 items-center justify-center rounded-full"
+            class="flex size-7 shrink-0 items-center justify-center rounded-full transition-colors duration-200"
             :class="
-                active
+                selected
                     ? 'bg-primary/20 text-primary dark:bg-primary/25'
                     : 'bg-muted text-muted-foreground'
             "
         >
             <component :is="icon" class="size-3.5" />
         </div>
-        <div class="leading-tight whitespace-nowrap">
+        <div class="text-left leading-tight whitespace-nowrap">
             <p class="text-[11px] text-muted-foreground">{{ label }}</p>
             <p class="text-sm font-semibold text-foreground">
                 {{ value }}
@@ -45,6 +56,11 @@ withDefaults(defineProps<Props>(), {
                 >
             </p>
         </div>
-        <span v-if="dotClass" class="size-1.5 rounded-full" :class="dotClass" />
-    </div>
+        <span
+            v-if="dotClass || dotColor"
+            class="size-1.5 rounded-full"
+            :class="dotClass"
+            :style="dotColor ? { backgroundColor: dotColor } : undefined"
+        />
+    </button>
 </template>

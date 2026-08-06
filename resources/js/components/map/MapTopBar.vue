@@ -2,6 +2,7 @@
 import { Leaf, Moon, Sun } from '@lucide/vue';
 import type { Component } from 'vue';
 import MapSearch from '@/components/map/MapSearch.vue';
+import ServiceOrderDialog from '@/components/map/ServiceOrderDialog.vue';
 import StatCard from '@/components/map/StatCard.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -12,15 +13,19 @@ import {
 import UserMenuContent from '@/components/UserMenuContent.vue';
 import { getInitials } from '@/composables/useInitials';
 import type { LatLng } from '@/data/ecoRouteMock';
+import type { MapStatusFilter } from '@/data/serviceStatus';
 import type { Appearance, User } from '@/types';
 
 export type TopBarStat = {
+    filterKey: MapStatusFilter;
     icon: Component;
     label: string;
     value: string;
     suffix?: string;
     dotClass?: string;
-    active?: boolean;
+    dotColor?: string;
+    selected: boolean;
+    dimmed: boolean;
 };
 
 type Props = {
@@ -35,6 +40,7 @@ defineProps<Props>();
 const emit = defineEmits<{
     'toggle-appearance': [];
     'search-select': [position: LatLng];
+    'select-stat': [key: MapStatusFilter];
 }>();
 </script>
 
@@ -64,12 +70,16 @@ const emit = defineEmits<{
                 :value="stat.value"
                 :suffix="stat.suffix"
                 :dot-class="stat.dotClass"
-                :active="stat.active"
+                :dot-color="stat.dotColor"
+                :selected="stat.selected"
+                :dimmed="stat.dimmed"
+                @click="emit('select-stat', stat.filterKey)"
             />
         </div>
 
-        <div class="flex flex-1 items-center justify-end">
+        <div class="flex flex-1 items-center justify-end gap-2">
             <MapSearch @select="emit('search-select', $event)" />
+            <ServiceOrderDialog />
         </div>
 
         <div class="flex shrink-0 items-center gap-2">

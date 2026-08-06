@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { Leaf, MapPin, Search, UserRound } from '@lucide/vue';
+import { MapPin, Search, UserRound } from '@lucide/vue';
 import { onClickOutside } from '@vueuse/core';
 import { computed, ref } from 'vue';
-import { collaborators, servicePoints } from '@/data/ecoRouteMock';
+import { collaboratorRoutes } from '@/data/ecoRouteMock';
 import type { LatLng } from '@/data/ecoRouteMock';
+import { STATUS_LABELS } from '@/data/serviceStatus';
 
 type SearchItem = {
     id: string;
@@ -25,35 +26,27 @@ onClickOutside(containerRef, () => {
     isOpen.value = false;
 });
 
-const pinItems = servicePoints
-    .filter((point) => point.kind === 'pin')
-    .map((point): SearchItem => ({
-        id: point.id,
-        label: `Ponto ${point.label}`,
-        category: 'Local de serviço',
+const stopItems = collaboratorRoutes.flatMap((route): SearchItem[] =>
+    route.stops.map((stop, index): SearchItem => ({
+        id: `${route.id}-${index}`,
+        label: `${route.name} — ${STATUS_LABELS[stop.status]}`,
+        category: 'Parada de rota',
         icon: MapPin,
-        position: point.position,
-    }));
+        position: stop.position,
+    })),
+);
 
-const leafItems = servicePoints
-    .filter((point) => point.kind === 'leaf')
-    .map((point, index): SearchItem => ({
-        id: point.id,
-        label: `Ponto de coleta ${index + 1}`,
-        category: 'Local de serviço',
-        icon: Leaf,
-        position: point.position,
-    }));
+const collaboratorItems = collaboratorRoutes.map(
+    (route): SearchItem => ({
+        id: route.id,
+        label: route.name,
+        category: 'Colaborador',
+        icon: UserRound,
+        position: route.stops[0].position,
+    }),
+);
 
-const collaboratorItems = collaborators.map((collaborator): SearchItem => ({
-    id: collaborator.id,
-    label: collaborator.name,
-    category: 'Colaborador',
-    icon: UserRound,
-    position: collaborator.position,
-}));
-
-const items: SearchItem[] = [...pinItems, ...leafItems, ...collaboratorItems];
+const items: SearchItem[] = [...stopItems, ...collaboratorItems];
 
 const results = computed<SearchItem[]>(() => {
     const term = query.value.trim().toLowerCase();

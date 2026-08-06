@@ -1,51 +1,55 @@
 <script setup lang="ts">
 import tt from '@tomtom-international/web-sdk-maps';
 import '@tomtom-international/web-sdk-maps/dist/maps.css';
-import type { Feature, FeatureCollection, LineString } from 'geojson';
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import {
-    collaborators,
-    mapCenter,
-    routeSegments,
-    servicePoints,
-} from '@/data/ecoRouteMock';
-import type { LatLng, RouteSegment } from '@/data/ecoRouteMock';
+import { collaboratorRoutes, mapCenter } from '@/data/ecoRouteMock';
+import type { CollaboratorRoute, LatLng, RouteStop } from '@/data/ecoRouteMock';
+import type { MapStatusFilter, ServiceStatus } from '@/data/serviceStatus';
 import { STATUS_COLORS } from '@/data/serviceStatus';
-import type { ServiceStatus } from '@/data/serviceStatus';
 import { toLngLat } from '@/lib/maps/geo';
-import {
-    avatarMarkerElement,
-    pinMarkerElement,
-    servicePointMarkerElement,
-} from '@/lib/maps/markerIcons';
+import { pinMarkerElement } from '@/lib/maps/markerIcons';
 import { fetchRoadRoute } from '@/lib/maps/tomtomRouting';
+
+export type StopSelection = {
+    route: CollaboratorRoute;
+    stop: RouteStop;
+    stopIndex: number;
+};
 
 type Props = {
     dark: boolean;
+    statusFilter?: MapStatusFilter | null;
 };
 
 const props = defineProps<Props>();
 
 const emit = defineEmits<{
     error: [message: string];
+    'select-stop': [selection: StopSelection];
 }>();
 
 const mapContainer = ref<HTMLDivElement | null>(null);
 let map: tt.Map | null = null;
 const markers: tt.Marker[] = [];
 
-const DEFAULT_PIN_COLOR = '#15803d';
-const LEAF_COLOR = '#16a34a';
-const AVATAR_COLOR = '#166534';
-const ROUTES_SOURCE_ID = 'eco-rota-routes';
-const ROUTE_STATUSES: ServiceStatus[] = [
-    'waiting',
-    'in-progress',
-    'completed',
-    'failed',
+type StopMarker = { icon: SVGElement; status: ServiceStatus };
+const stopMarkers: StopMarker[] = [];
+
+const ROUTE_LINE_COLORS = [
+    '#6366f1',
+    '#ec4899',
+    '#0ea5e9',
+    '#f97316',
+    '#8b5cf6',
 ];
 
-let routeFeatures: FeatureCollection<LineString> | null = null;
+type RouteLine = {
+    id: string;
+    color: string;
+    coordinates: [number, number][];
+};
+
+let routeLines: RouteLine[] | null = null;
 
 function styleFor(dark: boolean): tt.MapStyleConfig {
     return {
@@ -56,54 +60,74 @@ function styleFor(dark: boolean): tt.MapStyleConfig {
     };
 }
 
-async function buildRouteFeature(
-    segment: RouteSegment,
-    apiKey: string,
-): Promise<Feature<LineString>> {
-    const roadPath = await fetchRoadRoute(segment.waypoints, apiKey);
-
-    return {
-        type: 'Feature',
-        geometry: {
-            type: 'LineString',
-            coordinates: (roadPath ?? segment.waypoints).map(toLngLat),
-        },
-        properties: { status: segment.status },
-    };
-}
-
 async function loadRouteFeatures(apiKey: string): Promise<void> {
-    const features = await Promise.all(
-        routeSegments.map((segment) => buildRouteFeature(segment, apiKey)),
-    );
+    routeLines = await Promise.all(
+        collaboratorRoutes.map(async (route, index) => {
+            const waypoints = route.stops.map((stop) => stop.position);
+            const roadPath = await fetchRoadRoute(waypoints, apiKey);
 
-    routeFeatures = { type: 'FeatureCollection', features };
+            return {
+                id: route.id,
+                color: ROUTE_LINE_COLORS[index % ROUTE_LINE_COLORS.length],
+                coordinates: (roadPath ?? waypoints).map(toLngLat),
+            };
+        }),
+    );
 }
 
 function addRouteLayers(): void {
-    if (!map || !routeFeatures || map.getSource(ROUTES_SOURCE_ID)) {
+    if (!map || !routeLines) {
         return;
     }
 
-    map.addSource(ROUTES_SOURCE_ID, {
-        type: 'geojson',
-        data: routeFeatures,
-    });
+    for (const route of routeLines) {
+        const sourceId = `eco-rota-route-${route.id}`;
 
-    for (const status of ROUTE_STATUSES) {
-        map.addLayer({
-            id: `${ROUTES_SOURCE_ID}-${status}`,
-            type: 'line',
-            source: ROUTES_SOURCE_ID,
-            filter: ['==', ['get', 'status'], status],
-            paint: {
-                'line-color': STATUS_COLORS[status],
-                'line-width': 3,
-                ...(status === 'completed'
-                    ? { 'line-dasharray': [2, 2] }
-                    : {}),
+        if (map.getSource(sourceId)) {
+            continue;
+        }
+
+        map.addSource(sourceId, {
+            type: 'geojson',
+            data: {
+                type: 'Feature',
+                geometry: { type: 'LineString', coordinates: route.coordinates },
+                properties: {},
             },
         });
+
+        map.addLayer({
+            id: `${sourceId}-line`,
+            type: 'line',
+            source: sourceId,
+            paint: { 'line-color': route.color, 'line-width': 3 },
+        });
+    }
+}
+
+function matchesStatusFilter(
+    status: ServiceStatus,
+    filter: MapStatusFilter | null | undefined,
+): boolean {
+    if (!filter) {
+        return true;
+    }
+
+    if (filter === 'active') {
+        return status === 'waiting' || status === 'in-progress';
+    }
+
+    return status === filter;
+}
+
+function applyStatusFilter(): void {
+    const filter = props.statusFilter ?? null;
+
+    for (const stopMarker of stopMarkers) {
+        const matched = matchesStatusFilter(stopMarker.status, filter);
+        stopMarker.icon.style.opacity = matched ? '1' : '0.3';
+        stopMarker.icon.style.transform =
+            matched && filter ? 'scale(1.15)' : 'scale(1)';
     }
 }
 
@@ -112,41 +136,31 @@ function addMarkers(): void {
         return;
     }
 
-    for (const point of servicePoints) {
-        const element =
-            point.kind === 'pin'
-                ? pinMarkerElement(
-                      point.label,
-                      point.status
-                          ? STATUS_COLORS[point.status]
-                          : DEFAULT_PIN_COLOR,
-                  )
-                : servicePointMarkerElement(LEAF_COLOR);
+    for (const route of collaboratorRoutes) {
+        for (const [stopIndex, stop] of route.stops.entries()) {
+            const element = pinMarkerElement(
+                route.initials,
+                STATUS_COLORS[stop.status],
+            );
+            const icon = element.firstElementChild as SVGElement;
+            icon.style.transition = 'transform 0.2s ease, opacity 0.2s ease';
+            icon.style.transformOrigin = 'bottom center';
+            element.style.cursor = 'pointer';
+            element.addEventListener('click', (event) => {
+                event.stopPropagation();
+                emit('select-stop', { route, stop, stopIndex });
+            });
 
-        const marker = new tt.Marker({
-            element,
-            anchor: point.kind === 'pin' ? 'bottom' : 'center',
-        })
-            .setLngLat(toLngLat(point.position))
-            .addTo(map);
+            const marker = new tt.Marker({ element, anchor: 'bottom' })
+                .setLngLat(toLngLat(stop.position))
+                .addTo(map);
 
-        markers.push(marker);
+            markers.push(marker);
+            stopMarkers.push({ icon, status: stop.status });
+        }
     }
 
-    for (const collaborator of collaborators) {
-        const marker = new tt.Marker({
-            element: avatarMarkerElement(
-                AVATAR_COLOR,
-                collaborator.initials,
-                collaborator.active,
-            ),
-            anchor: 'center',
-        })
-            .setLngLat(toLngLat(collaborator.position))
-            .addTo(map);
-
-        markers.push(marker);
-    }
+    applyStatusFilter();
 }
 
 function initMap(): void {
@@ -204,6 +218,8 @@ watch(
         map?.setStyle(styleFor(dark));
     },
 );
+
+watch(() => props.statusFilter, applyStatusFilter);
 
 function zoomIn(): void {
     if (map) {
