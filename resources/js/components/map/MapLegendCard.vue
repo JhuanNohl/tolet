@@ -1,44 +1,55 @@
 <script setup lang="ts">
-import { Leaf } from '@lucide/vue';
+import { Clock3, CircleCheck, LoaderCircle, TriangleAlert } from '@lucide/vue';
+import type { ServiceStatus } from '@/data/serviceStatus';
+import {
+    STATUS_COLORS,
+    STATUS_LABELS,
+    STATUS_MEANINGS,
+} from '@/data/serviceStatus';
+
+const STATUS_ICONS: Record<ServiceStatus, unknown> = {
+    waiting: Clock3,
+    'in-progress': LoaderCircle,
+    completed: CircleCheck,
+    failed: TriangleAlert,
+};
+
+const statuses = (
+    Object.keys(STATUS_COLORS) as ServiceStatus[]
+).map((status) => ({
+    icon: STATUS_ICONS[status],
+    color: STATUS_COLORS[status],
+    label: STATUS_LABELS[status],
+    meaning: STATUS_MEANINGS[status],
+    spin: status === 'in-progress',
+}));
 </script>
 
 <template>
     <div
-        class="pointer-events-auto w-56 rounded-2xl border border-black/5 bg-white/70 p-4 shadow-lg backdrop-blur-md dark:border-white/10 dark:bg-black/60"
+        class="pointer-events-auto w-fit rounded-2xl border border-black/5 bg-white/70 p-4 shadow-lg backdrop-blur-md dark:border-white/10 dark:bg-black/60"
     >
         <p class="mb-3 text-sm font-semibold text-foreground">Legenda</p>
-        <ul class="space-y-2.5 text-sm text-muted-foreground">
-            <li class="flex items-center gap-2.5">
+        <ul class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
+            <li
+                v-for="status in statuses"
+                :key="status.label"
+                class="flex items-center gap-2.5 whitespace-nowrap"
+                :title="status.meaning"
+            >
                 <span
-                    class="flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground"
+                    class="flex size-5 shrink-0 items-center justify-center rounded-full text-white"
+                    :style="{ backgroundColor: status.color }"
                 >
-                    <Leaf class="size-3" />
+                    <component
+                        :is="status.icon"
+                        class="size-3"
+                        :class="{ 'animate-spin': status.spin }"
+                    />
                 </span>
-                Local de serviço
-            </li>
-            <li class="flex items-center gap-2.5">
-                <span class="size-3 rounded-full bg-green-500" />
-                Colaborador ativo
-            </li>
-            <li class="flex items-center gap-2.5">
-                <span class="h-0.5 w-5 rounded-full bg-primary" />
-                Rota em andamento
-            </li>
-            <li class="flex items-center gap-2.5">
-                <span
-                    class="h-0.5 w-5 rounded-full bg-primary/70"
-                    style="
-                        background-image: linear-gradient(
-                            to right,
-                            currentColor 50%,
-                            transparent 50%
-                        );
-                        background-size: 6px 2px;
-                        background-color: transparent;
-                        color: var(--color-primary);
-                    "
-                />
-                Rota concluída
+                <span class="font-medium text-foreground">{{
+                    status.label
+                }}</span>
             </li>
         </ul>
     </div>

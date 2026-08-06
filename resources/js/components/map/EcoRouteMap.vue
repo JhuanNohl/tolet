@@ -9,13 +9,16 @@ import {
     routeSegments,
     servicePoints,
 } from '@/data/ecoRouteMock';
-import type { LatLng } from '@/data/ecoRouteMock';
+import type { LatLng, RouteSegment } from '@/data/ecoRouteMock';
+import { STATUS_COLORS } from '@/data/serviceStatus';
+import type { ServiceStatus } from '@/data/serviceStatus';
 import { toLngLat } from '@/lib/maps/geo';
 import {
     avatarMarkerElement,
     pinMarkerElement,
     servicePointMarkerElement,
 } from '@/lib/maps/markerIcons';
+import { fetchRoadRoute } from '@/lib/maps/tomtomRouting';
 
 type Props = {
     dark: boolean;
@@ -31,11 +34,18 @@ const mapContainer = ref<HTMLDivElement | null>(null);
 let map: tt.Map | null = null;
 const markers: tt.Marker[] = [];
 
-const ROUTE_COLOR = '#22c55e';
-const PIN_COLOR = '#15803d';
+const DEFAULT_PIN_COLOR = '#15803d';
 const LEAF_COLOR = '#16a34a';
 const AVATAR_COLOR = '#166534';
 const ROUTES_SOURCE_ID = 'eco-rota-routes';
+const ROUTE_STATUSES: ServiceStatus[] = [
+    'waiting',
+    'in-progress',
+    'completed',
+    'failed',
+];
+
+let routeFeatures: FeatureCollection<LineString> | null = null;
 
 function styleFor(dark: boolean): tt.MapStyleConfig {
     return {
@@ -46,52 +56,55 @@ function styleFor(dark: boolean): tt.MapStyleConfig {
     };
 }
 
-function buildRoutesGeoJSON(): FeatureCollection<LineString> {
+async function buildRouteFeature(
+    segment: RouteSegment,
+    apiKey: string,
+): Promise<Feature<LineString>> {
+    const roadPath = await fetchRoadRoute(segment.waypoints, apiKey);
+
     return {
-        type: 'FeatureCollection',
-        features: routeSegments.map((segment): Feature<LineString> => ({
-            type: 'Feature',
-            geometry: {
-                type: 'LineString',
-                coordinates: segment.path.map(toLngLat),
-            },
-            properties: { status: segment.status },
-        })),
+        type: 'Feature',
+        geometry: {
+            type: 'LineString',
+            coordinates: (roadPath ?? segment.waypoints).map(toLngLat),
+        },
+        properties: { status: segment.status },
     };
 }
 
+async function loadRouteFeatures(apiKey: string): Promise<void> {
+    const features = await Promise.all(
+        routeSegments.map((segment) => buildRouteFeature(segment, apiKey)),
+    );
+
+    routeFeatures = { type: 'FeatureCollection', features };
+}
+
 function addRouteLayers(): void {
-    if (!map || map.getSource(ROUTES_SOURCE_ID)) {
+    if (!map || !routeFeatures || map.getSource(ROUTES_SOURCE_ID)) {
         return;
     }
 
     map.addSource(ROUTES_SOURCE_ID, {
         type: 'geojson',
-        data: buildRoutesGeoJSON(),
+        data: routeFeatures,
     });
 
-    map.addLayer({
-        id: `${ROUTES_SOURCE_ID}-in-progress`,
-        type: 'line',
-        source: ROUTES_SOURCE_ID,
-        filter: ['==', ['get', 'status'], 'in-progress'],
-        paint: {
-            'line-color': ROUTE_COLOR,
-            'line-width': 3,
-        },
-    });
-
-    map.addLayer({
-        id: `${ROUTES_SOURCE_ID}-completed`,
-        type: 'line',
-        source: ROUTES_SOURCE_ID,
-        filter: ['==', ['get', 'status'], 'completed'],
-        paint: {
-            'line-color': ROUTE_COLOR,
-            'line-width': 3,
-            'line-dasharray': [2, 2],
-        },
-    });
+    for (const status of ROUTE_STATUSES) {
+        map.addLayer({
+            id: `${ROUTES_SOURCE_ID}-${status}`,
+            type: 'line',
+            source: ROUTES_SOURCE_ID,
+            filter: ['==', ['get', 'status'], status],
+            paint: {
+                'line-color': STATUS_COLORS[status],
+                'line-width': 3,
+                ...(status === 'completed'
+                    ? { 'line-dasharray': [2, 2] }
+                    : {}),
+            },
+        });
+    }
 }
 
 function addMarkers(): void {
@@ -102,7 +115,12 @@ function addMarkers(): void {
     for (const point of servicePoints) {
         const element =
             point.kind === 'pin'
-                ? pinMarkerElement(point.label, PIN_COLOR)
+                ? pinMarkerElement(
+                      point.label,
+                      point.status
+                          ? STATUS_COLORS[point.status]
+                          : DEFAULT_PIN_COLOR,
+                  )
                 : servicePointMarkerElement(LEAF_COLOR);
 
         const marker = new tt.Marker({
@@ -165,7 +183,10 @@ function initMap(): void {
             );
         });
 
-        map.on('load', addMarkers);
+        map.on('load', () => {
+            addMarkers();
+            void loadRouteFeatures(apiKey).then(addRouteLayers);
+        });
         map.on('styledata', addRouteLayers);
     } catch (error) {
         emit(

@@ -5,7 +5,6 @@ import { computed, ref } from 'vue';
 import { toast } from 'vue-sonner';
 import EcoRouteMap from '@/components/map/EcoRouteMap.vue';
 import MapLegendCard from '@/components/map/MapLegendCard.vue';
-import MapSustainabilityCard from '@/components/map/MapSustainabilityCard.vue';
 import MapTopBar from '@/components/map/MapTopBar.vue';
 import type { TopBarStat } from '@/components/map/MapTopBar.vue';
 import MapZoomControls from '@/components/map/MapZoomControls.vue';
@@ -79,7 +78,6 @@ function handleMapError(message: string): void {
 
             <div class="flex items-end justify-between">
                 <MapLegendCard />
-                <MapSustainabilityCard :tons="operationsStats.co2AvoidedTons" />
             </div>
         </div>
 
