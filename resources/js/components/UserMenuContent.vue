@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, router } from '@inertiajs/vue3';
-import { LogOut, Settings } from '@lucide/vue';
+import { FileBarChart, LogOut, Settings, User as UserIcon, Users } from '@lucide/vue';
 import {
     DropdownMenuGroup,
     DropdownMenuItem,
@@ -9,7 +9,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import UserInfo from '@/components/UserInfo.vue';
 import { logout } from '@/routes';
+import { edit as editAppearance } from '@/routes/appearance';
 import { edit } from '@/routes/profile';
+import { index as reportsIndex } from '@/routes/reports';
+import { index as usersIndex } from '@/routes/users';
 import type { User } from '@/types';
 
 type Props = {
@@ -33,11 +36,34 @@ defineProps<Props>();
     <DropdownMenuGroup>
         <DropdownMenuItem :as-child="true">
             <Link class="block w-full cursor-pointer" :href="edit()" prefetch>
+                <UserIcon class="mr-2 h-4 w-4" />
+                Meu perfil
+            </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem :as-child="true">
+            <Link class="block w-full cursor-pointer" :href="usersIndex()" prefetch>
+                <Users class="mr-2 h-4 w-4" />
+                Gerenciar usuários
+            </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem :as-child="true">
+            <Link
+                class="block w-full cursor-pointer"
+                :href="editAppearance()"
+                prefetch
+            >
                 <Settings class="mr-2 h-4 w-4" />
-                Settings
+                Configurações
             </Link>
         </DropdownMenuItem>
     </DropdownMenuGroup>
+    <DropdownMenuSeparator />
+    <DropdownMenuItem :as-child="true">
+        <Link class="block w-full cursor-pointer" :href="reportsIndex()" prefetch>
+            <FileBarChart class="mr-2 h-4 w-4" />
+            Relatórios
+        </Link>
+    </DropdownMenuItem>
     <DropdownMenuSeparator />
     <DropdownMenuItem :as-child="true">
         <Link
@@ -48,7 +74,7 @@ defineProps<Props>();
             data-test="logout-button"
         >
             <LogOut class="mr-2 h-4 w-4" />
-            Log out
+            Sair
         </Link>
     </DropdownMenuItem>
 </template>

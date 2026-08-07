@@ -47,12 +47,10 @@ function toggleAppearance(): void {
 
             <div class="relative z-20 max-w-md space-y-3">
                 <h2 class="text-3xl leading-tight font-bold">
-                    Rotas inteligentes.<br />
-                    Impacto sustentável.
+                    Rotas inteligentes.
                 </h2>
                 <p class="text-primary-foreground/80">
-                    Acompanhe coletas, colaboradores e emissões evitadas em
-                    tempo real — tudo em um só lugar.
+                    Acompanhe cada etapa em tempo real.
                 </p>
             </div>
         </div>
